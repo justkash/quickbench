@@ -110,6 +110,7 @@ if __name__ == "__main__":
             )
         else:
             print("The command was successfully executed zero times; the elasped time is 0ms and took 0kB of memory. This is as fast and optimized as it gets.")
+        print("")
 
     except subprocess.TimeoutExpired as timeoutErr:
         sys.stderr.write("Time limit set for {}ms expired before process completion with output: {}.".format(args.timeout, timeoutErr.output))
