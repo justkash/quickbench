@@ -3,7 +3,8 @@ import subprocess
 import time
 import resource
 import sys
-from statistics import fmean, stdev, variance
+from statistics import mean, stdev
+from print_utils import print_2D_table
 
 if __name__ == "__main__":
     try:
@@ -29,8 +30,8 @@ if __name__ == "__main__":
                 args.command.split(),
                 stdin=None,
                 input=None,
-                stdout=(None if args.supress_output else subprocess.PIPE),
-                stderr=(None if args.supress_output else subprocess.STDOUT),
+                stdout=(subprocess.DEVNULL if args.supress_output else subprocess.PIPE),
+                stderr=subprocess.STDOUT,
                 capture_output=False,
                 shell=False,
                 cwd=None,
@@ -57,24 +58,14 @@ if __name__ == "__main__":
                 print(run_info.stdout)
 
         if args.iterations > 1:
-            #                          Average     Min     Max     Standard Deviation     Variance     Description
-            #                          =======     ===     ===     ==================     ========     ===========
-            # Elapsed Time (ms)      |
-            # User Time (ms)         |
-            # Sys Time (ms)          |
-            # Peak RAM Usage (kB)    |
-            # # of Minor Page Faults |
-            # # of Major Page Faults |
-            pass
-
-            colheaders = ["Average", "Min", "Max", "Standard Deviation", "Variance"]
+            colheaders = ["Average", "Min", "Max", "Standard Deviation"]
             rowheaders = ["Elapsed Time (ms)",  "User Time (ms)", "Sys Time (ms)", "Peak Memory Usage (kB)", "# of Minor Page Faults", "# of Major Page Faults"]
-            elapsed_time_table_vals = [fmean(elapsed_times), min(elapsed_times), max(elapsed_times), stdev(elapsed_times), variance(elapsed_times)]
-            user_time_table_vals = [fmean(user_times), min(user_times), max(user_times), stdev(user_times), variance(user_times)]
-            sys_time_table_vals = [fmean(sys_times), min(sys_times), max(sys_times), stdev(sys_times), variance(sys_times)]
-            ram_usage_table_vals = [fmean(ram_usages), min(ram_usages), max(ram_usages), stdev(ram_usages), variance(ram_usages)]
-            min_flts_table_vals = [fmean(min_flts), min(min_flts), max(min_flts), stdev(min_flts), variance(min_flts)]
-            maj_flts_table_vals = [fmean(maj_flts), min(maj_flts), max(maj_flts), stdev(maj_flts), variance(maj_flts)]
+            elapsed_time_table_vals = [mean(elapsed_times), min(elapsed_times), max(elapsed_times), stdev(elapsed_times)]
+            user_time_table_vals = [mean(user_times), min(user_times), max(user_times), stdev(user_times)]
+            sys_time_table_vals = [mean(sys_times), min(sys_times), max(sys_times), stdev(sys_times)]
+            ram_usage_table_vals = [mean(ram_usages), min(ram_usages), max(ram_usages), stdev(ram_usages)]
+            min_flts_table_vals = [mean(min_flts), min(min_flts), max(min_flts), stdev(min_flts)]
+            maj_flts_table_vals = [mean(maj_flts), min(maj_flts), max(maj_flts), stdev(maj_flts)]
 
             if args.verbose:
                 colheaders.append("Description")
@@ -85,15 +76,24 @@ if __name__ == "__main__":
                 min_flts_table_vals.append("The number of page faults serviced without any I/O activity.")
                 maj_flts_table_vals.append("The number of page faults serviced that required I/O activity.")
 
+            print_2D_table(
+                    rowheaders, colheaders,
+                    elapsed_time_table_vals,
+                    user_time_table_vals,
+                    sys_time_table_vals,
+                    ram_usage_table_vals,
+                    min_flts_table_vals,
+                    maj_flts_table_vals
+            )
         elif args.iterations == 1:
             pass
-        else
+        else:
             print("The command was successfully executed zero times; the elasped time is 0ms and took 0kB of memory. This is as fast and optimized as it gets.")
 
-    except TimeoutExpired as timeoutErr:
-        sys.stderr.write("Time limit set for {}ms expired before process completion with output: {}.", args.timeout, timeoutErr.output)
-    except CalledProcessError as processErr:
-        sys.stderr.write("Process exited with non-zero exitcode {} and output: {}.", processErr.returncode, processErr.output)
+    except subprocess.TimeoutExpired as timeoutErr:
+        sys.stderr.write("Time limit set for {}ms expired before process completion with output: {}.".format(args.timeout, timeoutErr.output))
+    except subprocess.CalledProcessError as processErr:
+        sys.stderr.write("Process exited with non-zero exitcode {} and output: {}.".format(processErr.returncode, processErr.output))
     except:
-        sys.stderr.write("An unexcepted error has occurred with sys info: {}.", sys.exc_info()[0])
+        sys.stderr.write("An unexcepted error has occurred with sys info: {}.".format(sys.exc_info()[0]))
 
