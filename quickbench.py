@@ -3,18 +3,18 @@ import subprocess
 import time
 import resource
 import sys
-from statistics import mean, stdev
-from print_utils import print_2D_table
+from statistics import mean, median, stdev
+from print_utils import print_2D_table, print_table
 
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Utility to quickly measure the memory usage and execution time for a given program process.")
 
-        parser.add_argument("command", help="command to run and measure the execution of")
+        parser.add_argument("command", help="command to execute for measurement")
         parser.add_argument("-s", "--supress_output", action="store_true", default=False, help="supress all output from the running process")
-        parser.add_argument("-v", "--verbose", action="store_true", default=False, help="include addtional metrics in the output")
-        parser.add_argument("-i", "--iterations", type=int, default=1, help="number of iterations to run")
-        parser.add_argument("-t", "--timeout", type=int, default=1000, help="amount of time in milliseconds to wait before terminating the running process")
+        parser.add_argument("-v", "--verbose", action="store_true", default=False, help="include a description with results")
+        parser.add_argument("-i", "--iterations", type=int, default=1, help="number of iterations to run (default is one)")
+        parser.add_argument("-t", "--timeout", type=int, default=1000, help="amount of time in milliseconds to wait before terminating the running process (default is 1s)")
         args = parser.parse_args()
 
         elapsed_times = [None]*args.iterations
@@ -57,25 +57,37 @@ if __name__ == "__main__":
             if not args.supress_output:
                 print(run_info.stdout)
 
+        # Print results
+        rowheaders = ["Elapsed Time (ms)",  "User Time (ms)", "Sys Time (ms)", "Peak Memory Usage (kB)", "# of Minor Page Faults", "# of Major Page Faults"]
+        colheaders = ["Min", "Mean", "Median", "Max", "Std Dev"]
+
+        elapsed_time_table_vals = user_time_table_vals = sys_time_table_vals = ram_usage_table_vals = min_flts_table_vals = maj_flts_table_vals  = []
         if args.iterations > 1:
-            colheaders = ["Average", "Min", "Max", "Standard Deviation"]
-            rowheaders = ["Elapsed Time (ms)",  "User Time (ms)", "Sys Time (ms)", "Peak Memory Usage (kB)", "# of Minor Page Faults", "# of Major Page Faults"]
-            elapsed_time_table_vals = [mean(elapsed_times), min(elapsed_times), max(elapsed_times), stdev(elapsed_times)]
-            user_time_table_vals = [mean(user_times), min(user_times), max(user_times), stdev(user_times)]
-            sys_time_table_vals = [mean(sys_times), min(sys_times), max(sys_times), stdev(sys_times)]
-            ram_usage_table_vals = [mean(ram_usages), min(ram_usages), max(ram_usages), stdev(ram_usages)]
-            min_flts_table_vals = [mean(min_flts), min(min_flts), max(min_flts), stdev(min_flts)]
-            maj_flts_table_vals = [mean(maj_flts), min(maj_flts), max(maj_flts), stdev(maj_flts)]
+            elapsed_time_table_vals = [min(elapsed_times), mean(elapsed_times), median(elapsed_times), max(elapsed_times), stdev(elapsed_times)]
+            user_time_table_vals = [min(user_times), mean(user_times), median(user_times), max(user_times), stdev(user_times)]
+            sys_time_table_vals = [min(sys_times), mean(sys_times), median(sys_times), max(sys_times), stdev(sys_times)]
+            ram_usage_table_vals = [min(ram_usages), int(mean(ram_usages)), int(median(ram_usages)), max(ram_usages), stdev(ram_usages)]
+            min_flts_table_vals = [min(min_flts), mean(min_flts), int(median(min_flts)), max(min_flts), stdev(min_flts)]
+            maj_flts_table_vals = [min(maj_flts), mean(maj_flts), int(median(maj_flts)), max(maj_flts), stdev(maj_flts)]
+        else:
+            elapsed_time_table_vals = elapsed_times
+            user_time_table_vals = user_times
+            sys_time_table_vals = sys_times
+            ram_usage_table_vals = ram_usages
+            min_flts_table_vals = min_flts
+            maj_flts_table_vals = maj_flts
 
-            if args.verbose:
-                colheaders.append("Description")
-                elapsed_time_table_vals.append("Wall clock time taken from start to finish of the process execution.")
-                user_time_table_vals.append("The amount of CPU time spent in user-mode (outside the kernel) for the process execution.")
-                sys_time_table_vals.append("The amount of CPU time spend in kernel-mode within system calls, as opposed to library code.")
-                ram_usage_table_vals.append("The maximum resident set size (peak memory) used. Note that this is the resident set size of the largest of all spawned processes rather than the maximum resident set size of the process tree.")
-                min_flts_table_vals.append("The number of page faults serviced without any I/O activity.")
-                maj_flts_table_vals.append("The number of page faults serviced that required I/O activity.")
+        if args.verbose:
+            colheaders.append("Description")
+            elapsed_time_table_vals.append("Wall clock time taken from start to finish of the process execution.")
+            user_time_table_vals.append("The amount of CPU time spent in user-mode (outside the kernel) for the process execution.")
+            sys_time_table_vals.append("The amount of CPU time spend in kernel-mode within system calls, as opposed to library code.")
+            ram_usage_table_vals.append("The resident set size (peak memory usage) of the largest of the spawned processes.")
+            min_flts_table_vals.append("The number of page faults serviced without any I/O activity.")
+            maj_flts_table_vals.append("The number of page faults serviced that required I/O activity.")
 
+        if args.iterations > 1:
+            print(f"Results from {args.iterations} iterations for command '{args.command}':")
             print_2D_table(
                     rowheaders, colheaders,
                     elapsed_time_table_vals,
@@ -86,7 +98,16 @@ if __name__ == "__main__":
                     maj_flts_table_vals
             )
         elif args.iterations == 1:
-            pass
+            print(f"Results from one iteration for command '{args.command}':")
+            print_table(
+                    rowheaders,
+                    elapsed_time_table_vals,
+                    user_time_table_vals,
+                    sys_time_table_vals,
+                    ram_usage_table_vals,
+                    min_flts_table_vals,
+                    maj_flts_table_vals
+            )
         else:
             print("The command was successfully executed zero times; the elasped time is 0ms and took 0kB of memory. This is as fast and optimized as it gets.")
 
@@ -94,6 +115,7 @@ if __name__ == "__main__":
         sys.stderr.write("Time limit set for {}ms expired before process completion with output: {}.".format(args.timeout, timeoutErr.output))
     except subprocess.CalledProcessError as processErr:
         sys.stderr.write("Process exited with non-zero exitcode {} and output: {}.".format(processErr.returncode, processErr.output))
-    except:
-        sys.stderr.write("An unexcepted error has occurred with sys info: {}.".format(sys.exc_info()[0]))
-
+    except TypeError as typeErr:
+        sys.stderr.write(str(typeErr))
+    #except:
+        #sys.stderr.write("An unexcepted error has occurred with sys info: {}.".format(sys.exc_info()[0]))
