@@ -3,10 +3,11 @@ import subprocess
 import time
 import resource
 import sys
+import os
 from statistics import mean, median, stdev
-from print_utils import print_2D_table, print_table
+from .print_utils import print_2D_table, print_table
 
-if __name__ == "__main__":
+def run_quickbench():
     try:
         parser = argparse.ArgumentParser(description="Utility to quickly measure the memory usage and execution time for a given program process.")
 
@@ -27,14 +28,14 @@ if __name__ == "__main__":
         for i in range(args.iterations):
             start_time = time.time()
             run_info = subprocess.run(
-                args.command.split(),
-                stdin=None,
+                args.command,
+                stdin=subprocess.PIPE,
                 input=None,
                 stdout=(subprocess.DEVNULL if args.supress_output else subprocess.PIPE),
                 stderr=subprocess.STDOUT,
                 capture_output=False,
-                shell=False,
-                cwd=None,
+                shell=True,
+                cwd=os.getcwd(),
                 timeout=args.timeout,
                 check=False,
                 encoding=None,
@@ -118,5 +119,3 @@ if __name__ == "__main__":
         sys.stderr.write("Process exited with non-zero exitcode {} and output: {}.".format(processErr.returncode, processErr.output))
     except TypeError as typeErr:
         sys.stderr.write(str(typeErr))
-    #except:
-        #sys.stderr.write("An unexcepted error has occurred with sys info: {}.".format(sys.exc_info()[0]))
